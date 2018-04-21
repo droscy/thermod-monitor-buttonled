@@ -1,0 +1,2 @@
+thermod-monitor-buttonled usr/bin/
+thermod-monitor-buttonled.service lib/systemd/system/
