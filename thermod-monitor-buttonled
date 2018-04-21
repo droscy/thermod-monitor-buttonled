@@ -37,7 +37,7 @@ from gpiozero import Button, RGBLED
 from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 
-__version__ = '1.1.0b1'
+__version__ = '1.1.0b2'
 __date__ = '2017-05-12'
 __updated__ = '2018-04-21'
 
@@ -137,7 +137,10 @@ class ButtonLedMonitor(object):
         try:
             logger.debug('{} Thermod status', ('longpolling' if longpolling else 'updating monitor with'))
             
-            rsp = self._session.get('{}/{}'.format(self._request_url, ('monitor' if longpolling else 'status')))
+            rsp = self._session.get('{}/{}'.format(
+                self._request_url,
+                ('monitor?name={}'.format(__monitor_name__) if longpolling else 'status')))
+            
             rsp.raise_for_status()  # check error status code
             
             logger.debug('processing response data')
