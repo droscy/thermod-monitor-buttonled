@@ -1,0 +1,15 @@
+[Unit]
+Description=Thermod ButtonLED monitor
+Requires=network.target syslog.service
+Wants=thermod.service
+After=network.target syslog.service thermod.service
+
+[Service]
+Type=simple
+User=thermod
+PermissionsStartOnly=true
+ExecStart=/usr/bin/thermod-monitor-buttonled --daemon
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target
