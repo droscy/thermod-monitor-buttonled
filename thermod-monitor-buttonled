@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-Thermod monitor for Raspberry Pi with one button and one led.
+Thermod monitor for Raspberry Pi with one button and one RGB LED.
 
 @author:     Simone Rossetto
 @copyright:  2018 Simone Rossetto
@@ -31,22 +31,23 @@ import sys
 
 from thermod import ThermodStatus
 from thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
-    LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG
+    LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, SOCKET_DEFAULT_PORT
 from gpiozero import Button, RGBLED
 from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 
-__version__ = '1.0.0b3'
+__version__ = '1.0.1b1'
 __date__ = '2017-05-12'
-__updated__ = '2018-01-12'
+__updated__ = '2018-04-21'
+
+__monitor_name__ = 'buttonled'
 
 # TODO capire come interrompere una get in corso quando si ha il SIGTERM
-# TODO gestire lo stato ON almeno a livello di LED
 # TODO rivedere i colori per farli più "logici"
 
 
 # setting up logging system
-logger = LogStyleAdapter(logging.getLogger('{}.buttonled'.format(LOGGER_BASE_NAME)))
+logger = LogStyleAdapter(logging.getLogger('{}.{}'.format(LOGGER_BASE_NAME, __monitor_name__)))
 logger.setLevel(logging.INFO)
 
 # default LED colors
@@ -71,6 +72,10 @@ def get_color(status):
         color = LED_COLOR_CYAN
     elif status == 't0':
         color = LED_COLOR_BLUE
+    elif status == 'on':
+        # The color for 'on' status is the same of 'off' color, but it blinks
+        # and cannot be set with the button.
+        color = LED_COLOR_RED
     elif status == 'off':
         color = LED_COLOR_RED
     else:
@@ -225,7 +230,7 @@ class ButtonLedMonitor(object):
                 self._timer.start()
 
 
-# shoutdown check and return code
+# shutdown check and return code
 running = True
 main_return_code = 0
 
@@ -246,7 +251,7 @@ parser.add_argument('-g', '--green', action='store', type=int, default=27, metav
 parser.add_argument('-b', '--blue', action='store', type=int, default=22, metavar='PIN', help='pin number for blue led')
 parser.add_argument('-u', '--button', action='store', type=int, default=5, metavar='PIN', help='pin number for control button')
 parser.add_argument('-H', '--host', action='store', default='localhost', help='daemon socket host name')
-parser.add_argument('-P', '--port', action='store', type=int, default=4344, help='daemon socket port')
+parser.add_argument('-P', '--port', action='store', type=int, default=SOCKET_DEFAULT_PORT, help='daemon socket port')
 parser.add_argument('-D', '--debug', action='store_true', help='start the monitor in debug mode')
 parser.add_argument('-d', '--daemon', action='store_true', help='start the monitor in background (log to syslog)')
 args = parser.parse_args()
@@ -278,7 +283,6 @@ with ButtonLedMonitor(args.red, args.green, args.blue, args.button, args.host, a
         except (requests.ConnectionError, requests.Timeout) as e:
             # do nothing, continue and go to sleep
             logger.error('errore while connecting to Thermod: {}', e)
-            pass
         
         logger.debug('starting main cycle')
         
