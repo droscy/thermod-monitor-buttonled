@@ -1,7 +1,7 @@
 # Thermod Button-LED monitor
 Thermod monitor for Raspberry Pi with one button and one RGB LED.
 
-The LED reports the current status of the thermostat, while the Button can be
+The LED reports the current status of the thermostat, while the button can be
 used to change the status in a, almost, sequential way: from any status to
 `auto` and from `auto` to `tmax` on first pressing, then from `tmax` to
 `off`, from `off` to `tmin`, from `tmin` to `antifreeze` and from
@@ -34,9 +34,10 @@ GNU General Public License v3
 
  - [thermod](https://github.com/droscy/thermod) (>=1.0.0)
  - [requests](http://docs.python-requests.org/) (>=2.4.3)
+ - [gpiozero](https://github.com/RPi-Distro/python-gpiozero) (>= 1.3.0)
 
-**Note:** this monitor is already included in Thermod v1.0.0, it has been
-removed and put in a separate repository since thermod commit XXXXXXX.
+**Note:** this monitor is already included in [Thermod v1.0.0](https://github.com/droscy/thermod/tree/1.0.0),
+then it has been removed and put in a separate repository since commit XXXXXXX.
 
 ### Installation
 To install the *Button-LED monitor* first uncompress the tarball and run

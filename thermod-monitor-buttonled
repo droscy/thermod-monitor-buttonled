@@ -43,8 +43,8 @@ __updated__ = '2018-04-21'
 
 __monitor_name__ = 'buttonled'
 
-# TODO capire come interrompere una get in corso quando si ha il SIGTERM
-# TODO rivedere i colori per farli più "logici"
+# TODO find a way to stop an ongoing GET request when a SIGTERM is received
+# TODO review colors in order to make them more "logic"
 
 
 # setting up logging system
@@ -73,11 +73,10 @@ def get_color(status):
         color = LED_COLOR_CYAN
     elif status == 't0':
         color = LED_COLOR_BLUE
-    elif status == 'on':
-        # The color for 'on' status is the same of 'off' color, but it blinks
-        # and cannot be set with the button.
-        color = LED_COLOR_RED
-    elif status == 'off':
+    elif status in ('on', 'off'):
+        # The color for ON and OFF statues is the same, but in case of ON
+        # it blinks because the heating is always on. Status ON cannot be
+        # set with the button, so there is no possible error for user.
         color = LED_COLOR_RED
     else:
         raise ValueError('invalid status')

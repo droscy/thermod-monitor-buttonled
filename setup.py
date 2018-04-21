@@ -45,6 +45,7 @@ setup(name='thermod-monitor-buttonled',
       license = 'GPL-3.0+',
       scripts=['thermod-monitor-buttonled'],
       install_requires=['thermod >= 1.0.0',
-                        'requests >= 2.4.3'])
+                        'requests >= 2.4.3',
+                        'gpiozero >= 1.3.0'])
 
 # vim: fileencoding=utf-8 tabstop=4 shiftwidth=4 expandtab
