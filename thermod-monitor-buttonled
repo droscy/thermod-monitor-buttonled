@@ -31,12 +31,13 @@ import sys
 
 from thermod import ThermodStatus
 from thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
-    LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, SOCKET_DEFAULT_PORT
+    LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, \
+    LOGGER_FMT_DATETIME, SOCKET_DEFAULT_PORT
 from gpiozero import Button, RGBLED
 from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 
-__version__ = '1.0.1b1'
+__version__ = '1.1.0b1'
 __date__ = '2017-05-12'
 __updated__ = '2018-04-21'
 
@@ -252,8 +253,9 @@ parser.add_argument('-b', '--blue', action='store', type=int, default=22, metava
 parser.add_argument('-u', '--button', action='store', type=int, default=5, metavar='PIN', help='pin number for control button')
 parser.add_argument('-H', '--host', action='store', default='localhost', help='daemon socket host name')
 parser.add_argument('-P', '--port', action='store', type=int, default=SOCKET_DEFAULT_PORT, help='daemon socket port')
+parser.add_argument('-L', '--log', action='store', default=None, help='write log messages to LOG file (full path)')
 parser.add_argument('-D', '--debug', action='store_true', help='start the monitor in debug mode')
-parser.add_argument('-d', '--daemon', action='store_true', help='start the monitor in background (log to syslog)')
+parser.add_argument('--daemon', action='store_true', help='start the monitor in background (log to syslog)')
 args = parser.parse_args()
 
 if args.debug:
@@ -270,6 +272,27 @@ else:
                                            datefmt=LOGGER_FMT_TIME,
                                            style=LOGGER_FMT_STYLE))
     logger.addHandler(console)
+
+if args.log:
+    try:
+        logfile = logging.FileHandler(args.log, mode='a')
+    
+    except PermissionError as pe:
+        logger.warning('cannot write log to `{}`: {}', args.log, pe)
+        logger.info('the monitor will start without logfile')
+    
+    else:
+        logfile.setFormatter(logging.Formatter(fmt=LOGGER_FMT_MSG,
+                                               datefmt=LOGGER_FMT_DATETIME,
+                                               style=LOGGER_FMT_STYLE))
+        logger.addHandler(logfile)
+    
+        if args.daemon:
+            # When a custom log file is configured and the deamon in started
+            # in background, only warnings and errors are printed to syslog.
+            syslog.setLevel(logging.WARNING)
+        
+        logger.debug('logging to file {}', args.log)
 
 
 with ButtonLedMonitor(args.red, args.green, args.blue, args.button, args.host, args.port) as monitor:
