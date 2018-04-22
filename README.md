@@ -8,7 +8,7 @@ used to change the status in a, almost, sequential way: from any status to
 `antifreeze` to `auto`.
 
 ## License
-Thermod DB-Stats monitor v0.0.0 \
+Thermod DB-Stats monitor v1.1.0 \
 Copyright (C) 2018 Simone Rossetto <simros85@gmail.com> \
 GNU General Public License v3
 
@@ -37,7 +37,8 @@ GNU General Public License v3
  - [gpiozero](https://github.com/RPi-Distro/python-gpiozero) (>= 1.3.0)
 
 **Note:** this monitor is already included in [Thermod v1.0.0](https://github.com/droscy/thermod/tree/1.0.0),
-then it has been removed and put in a separate repository since commit XXXXXXX.
+then it has been removed and put in a separate repository since commit
+[82a92f8](https://github.com/droscy/thermod/commit/82a92f8387802357a32f800c33da3efe434c7f3b).
 
 ### Installation
 To install the *Button-LED monitor* first uncompress the tarball and run
@@ -52,13 +53,14 @@ A Debian package can be build using
 
 Assuming you have already configured your system to use git-buildpackage
 (if not see Debian Wiki for [git-pbuilder](https://wiki.debian.org/git-pbuilder),
-[cowbuilder](https://wiki.debian.org/cowbuilder) and
-[Packaging with Git](https://wiki.debian.org/PackagingWithGit)) then these are
-the basic steps:
+[cowbuilder](https://wiki.debian.org/cowbuilder),
+[Packaging with Git](https://wiki.debian.org/PackagingWithGit) and
+[Using Git for Debian Packaging](https://www.eyrie.org/~eagle/notes/debian/git.html))
+then these are the basic steps:
 
 ```bash
 git clone https://github.com/droscy/thermod-monitor-buttonled.git
-cd thermod-monitor-dbstats
+cd thermod-monitor-buttonled
 git branch --track pristine-tar origin/pristine-tar
 git checkout -b debian/master origin/debian/master
 gbp buildpackage
@@ -67,7 +69,7 @@ gbp buildpackage
 The package can then be installed as usual:
 
 ```bash
-dpkg -i thermod-monitor-buttonled_{version}_XXX.deb
+dpkg -i thermod-monitor-buttonled_{version}_{arch}.deb
 ```
 
 
