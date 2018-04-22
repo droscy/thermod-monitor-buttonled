@@ -37,9 +37,9 @@ from gpiozero import Button, RGBLED
 from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 
-__version__ = '1.1.0b2'
+__version__ = '1.1.0'
 __date__ = '2017-05-12'
-__updated__ = '2018-04-21'
+__updated__ = '2018-04-22'
 
 __monitor_name__ = 'buttonled'
 
