@@ -1,0 +1,87 @@
+.\"
+.\" Thermod Button+LED monitor manpage
+.\"
+.\" process with groff -man -Tascii thermod-monitor-buttonled.1
+.\" or with groff -t -e -mandoc -Tps thermod-monitor-buttonled.1 > thermod-monitor-buttonled.ps
+.\" or with nroff -man thermod-monitor-buttonled.1 | less
+.\"
+
+.TH thermod-monitor-buttonled "1" "April 2018" "thermod-monitor-buttonled 1.1.0" "User Commands"
+.SH NAME
+thermod-monitor-buttonled \- monitor for Raspberry Pi with one button and one RGB LED
+
+.SH DESCRIPTION
+The LED reports the current status of the thermostat, while the button can be
+used to change the status in a, almost, sequential way: from any status to
+`auto` and from `auto` to `tmax` on first pressing, then from `tmax` to
+`off`, from `off` to `tmin`, from `tmin` to `antifreeze` and from
+`antifreeze` to `auto`.
+
+.SH SYNOPSIS
+.SY thermod\-monitor\-buttonled
+.OP \-\-red PIN
+.OP \-\-green PIN
+.OP \-\-blue PIN
+.OP \-\-button PIN
+.OP \-H hostname
+.OP \-P port
+.OP \-L log
+.OP \-\-debug
+.OP \-\-daemon
+.OP \-\-help
+.OP \-\-version
+.YS
+
+.SH OPTIONAL ARGUMENTS
+.TP
+\fB\-r\fR PIN, \fB\-\-red\fR PIN
+pin number for red led
+.TP
+\fB\-g\fR PIN, \fB\-\-green\fR PIN
+pin number for green led
+.TP
+\fB\-b\fR PIN, \fB\-\-blue\fR PIN
+pin number for blue led
+.TP
+\fB\-u\fR PIN, \fB\-\-button\fR PIN
+pin number for control button
+.TP
+\fB\-H\fR HOST, \fB\-\-host\fR HOST
+thermod socket host name
+.TP
+\fB\-P\fR PORT, \fB\-\-port\fR PORT
+thermod socket port
+.TP
+\fB\-L\fR LOG, \fB\-\-log\fR LOG
+write log messages to LOG file (full path)
+.TP
+\fB\-D\fR, \fB\-\-debug\fR
+start the monitor in debug mode
+.TP
+\fB\-\-daemon\fR
+start the monitor in background (log to syslog)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+show help messages and exit
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+show program's version number and exit
+
+.SH RETURNED\ VALUES
+.IP - 2
+.B 0
+no error
+.IP - 2
+.B any other value
+an error
+
+.SH COPYRIGHT
+Copyright (C) 2018
+.MT simros85@gmail.com
+Simone Rossetto
+.ME
+
+GNU General Public License v3
+.ce 0
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY.
