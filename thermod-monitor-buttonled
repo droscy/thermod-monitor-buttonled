@@ -30,16 +30,17 @@ import logging
 import sys
 
 from thermod import ThermodStatus
-from thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
+erom thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
     LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, \
-    LOGGER_FMT_DATETIME, SOCKET_DEFAULT_PORT
+    LOGGER_FMT_DATETIME, SOCKET_DEFAULT_HOST, SOCKET_DEFAULT_PORT, \
+    RET_CODE_OK, RET_CODE_CFG_FILE_UNKNOWN_ERR, RET_CODE_CFG_FILE_INVALID
 from gpiozero import Button, RGBLED
 from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 
-__version__ = '1.1.0'
+__version__ = '1.1.0.dev1'
 __date__ = '2017-05-12'
-__updated__ = '2018-04-22'
+__updated__ = '2020-05-04'
 
 __monitor_name__ = 'buttonled'
 
@@ -50,6 +51,20 @@ __monitor_name__ = 'buttonled'
 # setting up logging system
 logger = LogStyleAdapter(logging.getLogger('{}.{}'.format(LOGGER_BASE_NAME, __monitor_name__)))
 logger.setLevel(logging.INFO)
+
+# config filename and search paths
+MAIN_CONFIG_FILENAME = 'monitor-buttonled.conf'
+MAIN_CONFIG_FILES = (os.path.join(os.path.expanduser('~/.thermod'), MAIN_CONFIG_FILENAME),
+                     os.path.join(os.path.expanduser('~/.config/thermod'), MAIN_CONFIG_FILENAME),
+                     os.path.join('/usr/local/etc/thermod', MAIN_CONFIG_FILENAME),
+                     os.path.join('/var/lib/thermod', MAIN_CONFIG_FILENAME),
+                     os.path.join('/etc/thermod', MAIN_CONFIG_FILENAME))
+
+# default pins
+PIN_RED = 17
+PIN_GREEN = 27
+PIN_BLUE = 22
+PIN_BUTTON = 5
 
 # default LED colors
 LED_COLOR_BLACK = (0, 0, 0)
@@ -246,13 +261,9 @@ def shutdown(signum=None, frame=None, exitcode=0):
 signal.signal(signal.SIGTERM, shutdown)
 
 
-# main
+# parse input arguments
 parser = argparse.ArgumentParser(description='Thermod Button+LED Monitor')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {}'.format(__version__))
-parser.add_argument('-r', '--red', action='store', type=int, default=17, metavar='PIN', help='pin number for red led')
-parser.add_argument('-g', '--green', action='store', type=int, default=27, metavar='PIN', help='pin number for green led')
-parser.add_argument('-b', '--blue', action='store', type=int, default=22, metavar='PIN', help='pin number for blue led')
-parser.add_argument('-u', '--button', action='store', type=int, default=5, metavar='PIN', help='pin number for control button')
 parser.add_argument('-H', '--host', action='store', default='localhost', help='daemon socket host name')
 parser.add_argument('-P', '--port', action='store', type=int, default=SOCKET_DEFAULT_PORT, help='daemon socket port')
 parser.add_argument('-L', '--log', action='store', default=None, help='write log messages to LOG file (full path)')
@@ -260,6 +271,7 @@ parser.add_argument('-D', '--debug', action='store_true', help='start the monito
 parser.add_argument('--daemon', action='store_true', help='start the monitor in background (log to syslog)')
 args = parser.parse_args()
 
+# set logger
 if args.debug:
     logger.setLevel(logging.DEBUG)
 
@@ -296,8 +308,53 @@ if args.log:
         
         logger.debug('logging to file {}', args.log)
 
+# read config file
+config_files = args.config if args.config else MAIN_CONFIG_FILES
 
-with ButtonLedMonitor(args.red, args.green, args.blue, args.button, args.host, args.port) as monitor:
+try:
+    cfg = configparser.ConfigParser()
+    logger.debug('searching main configuration in files {}', config_files)
+    cfg_err = RET_CODE_OK
+    
+    _cfg_files_found = cfg.read(config_files)
+    
+    if _cfg_files_found:
+        logger.debug('configuration files found: {}', _cfg_files_found)
+    else:
+        raise FileNotFoundError()
+   
+   # pins
+   red = cfg.getint('monitor/buttonled', 'red', PIN_RED)
+   green = cfg.getint('monitor/buttonled', 'green', PIN_GREEN)
+   blue = cfg.getint('monitor/buttonled', 'blue', PIN_BLUE)
+   button = cfg.getint('monitor/buttonled', 'button', PIN_BUTTON)
+   
+   # connection settings
+   host = cfg.get('monitor/buttonled', 'host', SOCKET_DEFAULT_HOST)
+   port = cfg.getint('monitor/buttonled', 'port', SOCKET_DEFAULT_PORT)
+
+except ValueError as ve:
+    logger.error('invalid value in configuration file: {}', ve)
+    cfe_error = RET_CODE_CFG_FILE_INVALID
+
+except configparser.Error as cpe:
+    logger.critical('error in configuration file: `{}`', cpe)
+    cfg_err = RET_CODE_CFG_FILE_INVALID
+
+except FileNotFoundError:
+    logger.info('no configuration files found, continue with default settings')
+
+except Exception as e:
+    logger.critical('unknown error in configuration file: `{}`', e)
+    cfg_err = RET_CODE_CFG_FILE_UNKNOWN_ERR
+
+finally:
+    if cfg_err != RET_CODE_OK:
+        logger.info('closing monitor with return code {}', cfg_err)
+        exit(cfg_err)
+
+# main
+with ButtonLedMonitor(red, green, blue, button, host, port) as monitor:
     try:
         logger.info('Thermod Button+LED monitor v{} started', __version__)
         
