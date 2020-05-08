@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Thermod monitor for Raspberry Pi with one button and one RGB LED.
@@ -22,15 +22,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import os
+import sys
 import signal
 import argparse
 import requests
 import time
 import logging
-import sys
+import configparser
 
 from thermod import ThermodStatus
-from thermod import MAIN_CONFIG_FILES as THERMOD_CONFIG_FILES
+#from thermod.config import MAIN_CONFIG_FILES as THERMOD_CONFIG_FILES
 from thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
     LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, \
     LOGGER_FMT_DATETIME, SOCKET_DEFAULT_HOST, SOCKET_DEFAULT_PORT, \
@@ -40,28 +42,27 @@ from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 from operator import mul
 
-__version__ = '1.1.0.dev1'
+__version__ = '1.1.0.dev2'
 __date__ = '2017-05-12'
 __updated__ = '2020-05-08'
 
 __monitor_name__ = 'buttonled'
 
 # TODO find a way to stop an ongoing GET request when a SIGTERM is received
-# TODO review colors in order to make them more "logical"
-
 
 # setting up logging system
 logger = LogStyleAdapter(logging.getLogger('{}.{}'.format(LOGGER_BASE_NAME, __monitor_name__)))
 logger.setLevel(logging.INFO)
 
-# config filename and search paths
+# config filename and search paths (the last found overwrites the previouses)
 MAIN_CONFIG_FILENAME = 'monitor-buttonled.conf'
-MAIN_CONFIG_FILES = [os.path.join(os.path.expanduser('~/.thermod'), MAIN_CONFIG_FILENAME),
-                     os.path.join(os.path.expanduser('~/.config/thermod'), MAIN_CONFIG_FILENAME),
-                     os.path.join('/usr/local/etc/thermod', MAIN_CONFIG_FILENAME),
+MAIN_CONFIG_DEFAULT_FILE = os.path.join(os.path.expanduser('~/.thermod'), MAIN_CONFIG_FILENAME)
+MAIN_CONFIG_FILES = [os.path.join('/etc/thermod', MAIN_CONFIG_FILENAME),
                      os.path.join('/var/lib/thermod', MAIN_CONFIG_FILENAME),
-                     os.path.join('/etc/thermod', MAIN_CONFIG_FILENAME)]
-MAIN_CONFIG_FILENAME.extend(THERMOD_CONFIG_FILES)
+                     os.path.join('/usr/local/etc/thermod', MAIN_CONFIG_FILENAME),
+                     os.path.join(os.path.expanduser('~/.config/thermod'), MAIN_CONFIG_FILENAME),
+                     MAIN_CONFIG_DEFAULT_FILE]
+#MAIN_CONFIG_FILES.extend(THERMOD_CONFIG_FILES)
 
 # default pins
 PIN_RED = 17
@@ -79,50 +80,45 @@ LED_COLOR_CYAN = (0, 0.7, 1)
 LED_COLOR_MAGENTA = (0.3, 0, 1)
 
 # default values for brightness
-LED_BRIGHTNESS = 1.0
+DEFAULT_BRIGHTNESS = 1.0
 NIGHT_BRIGHTNESS = 0.3
 NIGHT_START_TIME = '21:00'
 NIGHT_END_TIME = '07:00'
-
-def get_color(status):
-    """Convert a Thermod status to its corresponding LED color."""
-    
-    logger.debug('converting status with colour code')
-    
-    if status == 'auto':
-        color = LED_COLOR_GREEN
-    elif status == 'tmax':
-        color = LED_COLOR_YELLOW
-    elif status == 'tmin':
-        color = LED_COLOR_CYAN
-    elif status == 't0':
-        color = LED_COLOR_BLUE
-    elif status in ('on', 'off'):
-        # The color for ON and OFF statues is the same, but in case of ON
-        # it blinks because the heating is always on. Status ON cannot be
-        # set with the button, so there is no possible error for user.
-        color = LED_COLOR_RED
-    else:
-        raise ValueError('invalid status')
-    
-    return color
 
 # the real monitor class
 class ButtonLedMonitor(object):
     """Manage a Thermod monitor with an RGB LED and a push button."""
     
-    def __init__(self, red, green, blue, button, host, port, timeout=3, brightness, night_brightness, night_start, night_end):
+    def __init__(self,
+                 red,
+                 green,
+                 blue,
+                 button,
+                 host,
+                 port,
+                 led_colors,
+                 default_brightness,
+                 night_brightness,
+                 night_start,
+                 night_end,
+                 timeout=3):
         """Init a ButtonLedMonitor with corresponding PINs.
         
         @param red pin number for red led
         @param green pin number for green led
         @param blue pin number for blue led
         @param button pin number for push button
-        @param brightness default led brightness (float value between 0 and 1)
+        @param host thermod daemon host name
+        @param port thermod daemon port number
+        @param led_colors dictonary with led colors, one element per thermod status
+        @param default_brightness default led brightness (float value between 0 and 1)
         @param night_brightness night time led brightness (float value between 0 and 1)
         @param night_start start time for night interval (integer value in format `HHMM`)
         @param night_end end time for night interval (integer value in format `HHMM`)
+        @param timeout timeout for button press (seconds)
         """
+        
+        logger.debug('initializing {}', self.__class__.__name__)
         
         self._status = 'off'
         self._new_status = None
@@ -139,18 +135,34 @@ class ButtonLedMonitor(object):
         self._changing_status = Lock()
         self._press_id = 0
         
-        self._bright = brightness
+        self._colors = led_colors
+        
+        self._bright = default_brightness
         self._nbright = night_brightness
         self._nstart = night_start
         self._nend = night_end
     
-    def adjust_brightness(self, color):
-        """Return the provided color with brightness adjusted."""
+    def color(self, status=None):
+        """Return the LED color that corrisponds to the provided status.
+        
+        The brightness is automatically adjusted based on current time.
+        Inf the `status` is not provided, the current status is used.
+        """
+        
+        logger.debug('retrieving color for status `{}`', status)
+        
+        if status is None:
+            status = self._status
+        
         now = int(time.strftime('%H%M'))
         brightness = self._nbright if (now >= self._nstart or now < self._nend) else self._bright
-        return tuple(map(mul, color, (brightness, ) * 3))
+        logger.debug('current brightness is {:.1f}', brightness)
+        
+        return tuple(map(mul, self._colors[status], (brightness, ) * 3))
     
     def __enter__(self):
+        logger.debug('starting {}', self.__class__.__name__)
+        
         self._session = requests.Session()
         
         self._led = RGBLED(self._pins[0], self._pins[1], self._pins[2])
@@ -158,13 +170,15 @@ class ButtonLedMonitor(object):
         
         self._led.blink(on_time=0.2,
                         off_time=0.2,
-                        on_color=self.adjust_brightness(LED_COLOR_RED),
-                        off_color=self.adjust_brightness(LED_COLOR_BLACK))
+                        on_color=self.color('off'),
+                        off_color=LED_COLOR_BLACK)
         
         self._button.when_pressed = self._manage_button_press
         return self
     
     def __exit__(self, exc_type=None, exc_value=None, traceback=None):
+        logger.debug('closing {}', self.__class__.__name__)
+        
         self._session.close()
         
         if self._timer:
@@ -191,8 +205,7 @@ class ButtonLedMonitor(object):
             jrsp = rsp.json()
             status = ThermodStatus(**jrsp)
             
-            color = self.adjust_brightness(get_color(status.status))
-            off_color = self.adjust_brightness(LED_COLOR_BLACK)
+            color = self.color(status.status)
             
             with self._lock:
                 logger.debug('updating LED colour')
@@ -202,12 +215,14 @@ class ButtonLedMonitor(object):
                 if self._changing_status.acquire(blocking=False):
                     try:
                         if status.heating_status == 1:
+                            logger.debug('the led will blink')
                             self._led.off()
                             self._led.blink(on_time=0.5,
                                             off_time=0.5,
                                             on_color=color,
-                                            off_color=off_color)
+                                            off_color=LED_COLOR_BLACK)
                         else:
+                            logger.debug('the led will stay steady on')
                             self._led.color = color
                         
                         self._status = status.status
@@ -216,11 +231,12 @@ class ButtonLedMonitor(object):
                         self._changing_status.release()
         
         except Exception as e:
+            logger.debug('error in updating status, the led will blink red-yellow')
             self._led.off()
             self._led.blink(on_time=0.2,
                             off_time=0.2,
-                            on_color=self.adjust_brightness(LED_COLOR_RED),
-                            off_color=self.adjust_brightness(LED_COLOR_YELLOW))
+                            on_color=self.color('red'),
+                            off_color=self.color('yellow'))
             
             raise
     
@@ -263,15 +279,17 @@ class ButtonLedMonitor(object):
                     if self._new_status == 'auto':
                         self._new_status = 'tmax'
                     elif self._new_status == 'tmax':
-                        self._new_status = 'off'
-                    elif self._new_status == 'off':
                         self._new_status = 'tmin'
                     elif self._new_status == 'tmin':
                         self._new_status = 't0'
                     elif self._new_status == 't0':
+                        self._new_status = 'off'
+                    elif self._new_status == 'off':
+                        self._new_status = 'on'
+                    elif self._new_status == 'on':
                         self._new_status = 'auto'
                 
-                self._led.color = self.adjust_brightness(get_color(self._new_status))
+                self._led.color = self.color(self._new_status)
             
             finally:
                 self._press_id += 1
@@ -297,7 +315,8 @@ parser = argparse.ArgumentParser(description='Thermod Button+LED Monitor')
 parser.add_argument('-c', '--config', action='store', default=None, help='path to configuration file')
 parser.add_argument('-L', '--log', action='store', default=None, help='write log messages to LOG file (full path)')
 parser.add_argument('-D', '--debug', action='store_true', help='start the monitor in debug mode')
-parser.add_argument('--daemon', action='store_true', help='log messages to syslog (useful if started by systemd)')
+parser.add_argument('--syslog', action='store_true', help='log messages to syslog (useful if started by systemd)')
+parser.add_argument('--daemon', action='store_true', help='alias for --syslog')
 parser.add_argument('-v', '--version', action='version', version='%(prog)s {}'.format(__version__))
 args = parser.parse_args()
 
@@ -305,7 +324,7 @@ args = parser.parse_args()
 if args.debug:
     logger.setLevel(logging.DEBUG)
 
-if args.daemon:
+if args.syslog or args.daemon:
     syslog = SysLogHandler(address='/dev/log', facility=SysLogHandler.LOG_DAEMON)
     syslog.setFormatter(logging.Formatter(fmt=LOGGER_FMT_MSG_SYSLOG,
                                           style=LOGGER_FMT_STYLE))
@@ -331,7 +350,7 @@ if args.log:
                                                style=LOGGER_FMT_STYLE))
         logger.addHandler(logfile)
     
-        if args.daemon:
+        if args.syslog or args.daemon:
             # When a custom log file is configured and the deamon in started
             # in background, only warnings and errors are printed to syslog.
             syslog.setLevel(logging.WARNING)
@@ -344,44 +363,81 @@ config_files = args.config if args.config else MAIN_CONFIG_FILES
 try:
     cfg_err = RET_CODE_OK
     cfg = configparser.ConfigParser()
-    logger.debug('searching configuration in files {}', config_files)
     
+    logger.debug('searching configuration in files {}', config_files)
     _cfg_files_found = cfg.read(config_files)
     
     if _cfg_files_found:
         logger.debug('configuration files found: {}', _cfg_files_found)
     else:
-        raise FileNotFoundError()
+        logger.info('no configuration files found, creating a default one in {}', MAIN_CONFIG_DEFAULT_FILE)
+        
+        cfg['monitor/buttonled'] = {'red': PIN_RED,
+                                    'green': PIN_GREEN,
+                                    'blue': PIN_BLUE,
+                                    'button': PIN_BUTTON,
+                                    'host': SOCKET_DEFAULT_HOST,
+                                    'port': SOCKET_DEFAULT_PORT}
+        
+        cfg['monitor/buttonled/colors'] = {'auto': ','.join([str(c) for c in LED_COLOR_GREEN]),
+                                           'tmax': ','.join([str(c) for c in LED_COLOR_YELLOW]),
+                                           'tmin': ','.join([str(c) for c in LED_COLOR_CYAN]),
+                                           't0': ','.join([str(c) for c in LED_COLOR_BLUE]),
+                                           'on': ','.join([str(c) for c in LED_COLOR_MAGENTA]),
+                                           'off': ','.join([str(c) for c in LED_COLOR_RED]),
+                                           'red': ','.join([str(c) for c in LED_COLOR_RED]),
+                                           'yellow': ','.join([str(c) for c in LED_COLOR_YELLOW])}
+        
+        cfg['monitor/buttonled/brightness'] = {'default': DEFAULT_BRIGHTNESS,
+                                               'night': NIGHT_BRIGHTNESS,
+                                               'begin': NIGHT_START_TIME,
+                                               'end': NIGHT_END_TIME}
+        
+        try:
+            os.makedirs(os.path.dirname(MAIN_CONFIG_DEFAULT_FILE), exist_ok=True)
+            
+            with open(MAIN_CONFIG_DEFAULT_FILE, 'w') as cfgfile:
+                cfg.write(cfgfile)
+        
+        except:
+            logger.warning('cannot create config file, continue with default settings')
    
-   # pins
-   red = cfg.getint('monitor/buttonled', 'red', PIN_RED)
-   green = cfg.getint('monitor/buttonled', 'green', PIN_GREEN)
-   blue = cfg.getint('monitor/buttonled', 'blue', PIN_BLUE)
-   button = cfg.getint('monitor/buttonled', 'button', PIN_BUTTON)
-   
-   # connection settings (searched even in main thermod settings)
-   host = cfg.get('monitor/buttonled', 'host', cfg.get('socket', 'host', SOCKET_DEFAULT_HOST))
-   port = cfg.getint('monitor/buttonled', 'port', cfg.get('socket', 'port', SOCKET_DEFAULT_PORT))
-   
-   # LED brightness normal and night time
-   led_brightness = cfg.getfloat('monitor/buttonled', 'led-brightness', LED_BRIGHTNESS)
-   night_brightness = cfg.getfloat('monitor/buttonled', 'night-brightness', NIGHT_BRIGHTNESS)
-   night_start_time = int(cfg.get('monitor/buttonled', 'night-start', NIGHT_START_TIME).replace(':', ''))
-   night_end_time = int(cfg.get('monitor/buttonled', 'night-stop', NIGHT_END_TIME).replace(':', ''))
+    # pins
+    red = cfg.getint('monitor/buttonled', 'red', fallback=PIN_RED)
+    green = cfg.getint('monitor/buttonled', 'green', fallback=PIN_GREEN)
+    blue = cfg.getint('monitor/buttonled', 'blue', fallback=PIN_BLUE)
+    button = cfg.getint('monitor/buttonled', 'button', fallback=PIN_BUTTON)
+    
+    # LED color for statuses
+    colors = {'auto': [float(c) for c in cfg.get('monitor/buttonled/colors', 'auto', fallback=','.join([str(c) for c in LED_COLOR_GREEN])).split(',')],
+              'tmax': [float(c) for c in cfg.get('monitor/buttonled/colors', 'tmax', fallback=','.join([str(c) for c in LED_COLOR_YELLOW])).split(',')],
+              'tmin': [float(c) for c in cfg.get('monitor/buttonled/colors', 'tmin', fallback=','.join([str(c) for c in LED_COLOR_CYAN])).split(',')],
+              't0': [float(c) for c in cfg.get('monitor/buttonled/colors', 't0', fallback=','.join([str(c) for c in LED_COLOR_BLUE])).split(',')],
+              'on': [float(c) for c in cfg.get('monitor/buttonled/colors', 'on', fallback=','.join([str(c) for c in LED_COLOR_MAGENTA])).split(',')],
+              'off': [float(c) for c in cfg.get('monitor/buttonled/colors', 'off', fallback=','.join([str(c) for c in LED_COLOR_RED])).split(',')],
+              'red': [float(c) for c in cfg.get('monitor/buttonled/colors', 'red', fallback=','.join([str(c) for c in LED_COLOR_RED])).split(',')],
+              'yellow': [float(c) for c in cfg.get('monitor/buttonled/colors', 'yellow', fallback=','.join([str(c) for c in LED_COLOR_YELLOW])).split(',')]}
+    
+    # connection settings (searched even in main thermod settings)
+    host = cfg.get('monitor/buttonled', 'host', fallback=cfg.get('socket', 'host', fallback=SOCKET_DEFAULT_HOST))
+    port = cfg.getint('monitor/buttonled', 'port', fallback=cfg.get('socket', 'port', fallback=SOCKET_DEFAULT_PORT))
+    
+    # LED brightness normal and night time
+    default_brightness = cfg.getfloat('monitor/buttonled/brightness', 'default', fallback=DEFAULT_BRIGHTNESS)
+    night_brightness = cfg.getfloat('monitor/buttonled/brightness', 'night', fallback=NIGHT_BRIGHTNESS)
+    night_start_time = int(cfg.get('monitor/buttonled/brightness', 'begin', fallback=NIGHT_START_TIME).replace(':', ''))
+    night_end_time = int(cfg.get('monitor/buttonled/brightness', 'end', fallback=NIGHT_END_TIME).replace(':', ''))
 
 except ValueError as ve:
     logger.error('invalid value in configuration file: {}', ve)
     cfe_error = RET_CODE_CFG_FILE_INVALID
 
 except configparser.Error as cpe:
-    logger.critical('error in configuration file: {}', cpe)
+    logger.error('error in configuration file: {}', cpe)
     cfg_err = RET_CODE_CFG_FILE_INVALID
 
-except FileNotFoundError:
-    logger.info('no configuration files found, continue with default settings')
-
 except Exception as e:
-    logger.critical('unknown error in configuration file: {}', e)
+    logger.critical('unknown error in configuration file: {}', e, exc_info=True)
     cfg_err = RET_CODE_CFG_FILE_UNKNOWN_ERR
 
 finally:
@@ -390,7 +446,17 @@ finally:
         exit(cfg_err)
 
 # main
-with ButtonLedMonitor(red, green, blue, button, host, port) as monitor:
+with ButtonLedMonitor(red,
+                      green,
+                      blue,
+                      button,
+                      host,
+                      port,
+                      colors,
+                      default_brightness,
+                      night_brightness,
+                      night_start_time,
+                      night_end_time) as monitor:
     try:
         logger.info('Thermod Button+LED monitor v{} started', __version__)
         
@@ -408,8 +474,9 @@ with ButtonLedMonitor(red, green, blue, button, host, port) as monitor:
             try:
                 monitor.update_status()
             
-            except ValueError as ve:
+            except (KeyError, ValueError) as ve:
                 logger.warning('invalid value returned from Thermod: {}', ve)
+                time.sleep(10)
             
             except requests.RequestException as e:
                 logger.warning('error while communicating with Thermod: {}', e)
