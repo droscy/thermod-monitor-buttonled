@@ -44,11 +44,12 @@ from operator import mul
 
 __version__ = '1.1.0.dev2'
 __date__ = '2017-05-12'
-__updated__ = '2020-05-08'
+__updated__ = '2020-05-09'
 
 __monitor_name__ = 'buttonled'
 
 # TODO find a way to stop an ongoing GET request when a SIGTERM is received
+# TODO remove deprecated arguments in version 2.0
 
 # setting up logging system
 logger = LogStyleAdapter(logging.getLogger('{}.{}'.format(LOGGER_BASE_NAME, __monitor_name__)))
@@ -313,6 +314,12 @@ signal.signal(signal.SIGTERM, shutdown)
 # parse input arguments
 parser = argparse.ArgumentParser(description='Thermod Button+LED Monitor')
 parser.add_argument('-c', '--config', action='store', default=None, help='path to configuration file')
+parser.add_argument('-r', '--red', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for red led')
+parser.add_argument('-g', '--green', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for green led')
+parser.add_argument('-b', '--blue', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for blue led')
+parser.add_argument('-u', '--button', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for control button')
+parser.add_argument('-H', '--host', action='store', default=None, help='(deprecated, use config file) daemon socket host name')
+parser.add_argument('-P', '--port', action='store', type=int, default=None, help='(deprecated, use config file) daemon socket port')
 parser.add_argument('-L', '--log', action='store', default=None, help='write log messages to LOG file (full path)')
 parser.add_argument('-D', '--debug', action='store_true', help='start the monitor in debug mode')
 parser.add_argument('--syslog', action='store_true', help='log messages to syslog (useful if started by systemd)')
@@ -402,11 +409,11 @@ try:
         except:
             logger.warning('cannot create config file, continue with default settings')
    
-    # pins
-    red = cfg.getint('monitor/buttonled', 'red', fallback=PIN_RED)
-    green = cfg.getint('monitor/buttonled', 'green', fallback=PIN_GREEN)
-    blue = cfg.getint('monitor/buttonled', 'blue', fallback=PIN_BLUE)
-    button = cfg.getint('monitor/buttonled', 'button', fallback=PIN_BUTTON)
+    # pins (TODO remove deprecated args.* for pins)
+    red = args.red if args.red else cfg.getint('monitor/buttonled', 'red', fallback=PIN_RED)
+    green = args.green if args.green else cfg.getint('monitor/buttonled', 'green', fallback=PIN_GREEN)
+    blue = args.blue if args.blue else cfg.getint('monitor/buttonled', 'blue', fallback=PIN_BLUE)
+    button = args.button if args.button else cfg.getint('monitor/buttonled', 'button', fallback=PIN_BUTTON)
     
     # LED color for statuses
     colors = {'auto': [float(c) for c in cfg.get('monitor/buttonled/colors', 'auto', fallback=','.join([str(c) for c in LED_COLOR_GREEN])).split(',')],
@@ -419,8 +426,9 @@ try:
               'yellow': [float(c) for c in cfg.get('monitor/buttonled/colors', 'yellow', fallback=','.join([str(c) for c in LED_COLOR_YELLOW])).split(',')]}
     
     # connection settings (searched even in main thermod settings)
-    host = cfg.get('monitor/buttonled', 'host', fallback=cfg.get('socket', 'host', fallback=SOCKET_DEFAULT_HOST))
-    port = cfg.getint('monitor/buttonled', 'port', fallback=cfg.get('socket', 'port', fallback=SOCKET_DEFAULT_PORT))
+    # TODO remove deprecated args.*
+    host = args.host if args.host else cfg.get('monitor/buttonled', 'host', fallback=cfg.get('socket', 'host', fallback=SOCKET_DEFAULT_HOST))
+    port = args.port if args.port else cfg.getint('monitor/buttonled', 'port', fallback=cfg.get('socket', 'port', fallback=SOCKET_DEFAULT_PORT))
     
     # LED brightness normal and night time
     default_brightness = cfg.getfloat('monitor/buttonled/brightness', 'default', fallback=DEFAULT_BRIGHTNESS)
