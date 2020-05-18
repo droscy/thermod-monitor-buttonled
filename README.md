@@ -2,13 +2,12 @@
 Thermod monitor for Raspberry Pi with one button and one RGB LED.
 
 The LED reports the current status of the thermostat, while the button can be
-used to change the status in a, almost, sequential way: from any status to
+used to change the status in a sequential way: from any status to
 `auto` and from `auto` to `tmax` on first pressing, then from `tmax` to
-`off`, from `off` to `tmin`, from `tmin` to `antifreeze` and from
-`antifreeze` to `auto`.
+`tmin`, from `tmin` to `antifreeze`, and so on.
 
 ## License
-Thermod DB-Stats monitor v1.1.0 \
+Thermod Button-LED monitor v1.2.0-beta1 \
 Copyright (C) 2018 Simone Rossetto <simros85@gmail.com> \
 GNU General Public License v3
 
@@ -30,9 +29,9 @@ GNU General Public License v3
 
 ### Requirements
 *Thermod Button-LED monitor* requires [Python3](https://www.python.org/)
-(at least version 3.5) and the packages:
+(at least version 3.5) and the following packages:
 
- - [thermod](https://github.com/droscy/thermod) (>=1.0.0)
+ - [thermod](https://github.com/droscy/thermod) (>=1.0.0, <2.0.0)
  - [requests](http://docs.python-requests.org/) (>=2.4.3)
  - [gpiozero](https://github.com/RPi-Distro/python-gpiozero) (>= 1.3.0)
 
@@ -41,11 +40,31 @@ then it has been removed and put in a separate repository since commit
 [82a92f8](https://github.com/droscy/thermod/commit/82a92f8387802357a32f800c33da3efe434c7f3b).
 
 ### Installation
-To install the *Button-LED monitor* first uncompress the tarball and run
+To install *Button-LED monitor* you need to have [Python3](https://www.python.org/)
+and [virtualenv](https://virtualenv.pypa.io/en/stable/) already installed on
+the system, then the basic steps are:
 
-```bash
-python3 setup.py install
-```
+ 1. download and uncompress the source tarball (or clone the repository)
+
+ 2. create e virtualenv somewhere
+
+ 3. install [thermod](https://github.com/droscy/thermod) package in that virtualenv (see its readme on how to install)
+
+ 4. using the same virtualenv, install *Button-LED monitor* with
+
+       ```bash
+       python3 setup.py install
+       ```
+
+ 5. copy the config file `monitor-buttonled.conf` in one of the following folder (the top-most take precedence)
+
+    - `~/.thermod/`
+    - `~/.config/thermod/`
+    - `/usr/local/etc/thermod/`
+    - `/var/lib/thermod/`
+    - `/etc/thermod/`
+
+    and adjust it to your needs.
 
 ### Building and installing on Debian-based system
 A Debian package can be build using
@@ -56,10 +75,9 @@ Assuming you have already configured your system to use git-buildpackage
 [cowbuilder](https://wiki.debian.org/cowbuilder),
 [Packaging with Git](https://wiki.debian.org/PackagingWithGit) and
 [Using Git for Debian Packaging](https://www.eyrie.org/~eagle/notes/debian/git.html))
-then these are the basic steps:
+and cloned the repository, then do:
 
 ```bash
-git clone https://github.com/droscy/thermod-monitor-buttonled.git
 cd thermod-monitor-buttonled
 git branch --track pristine-tar origin/pristine-tar
 git checkout -b debian/master origin/debian/master
@@ -74,36 +92,55 @@ dpkg -i thermod-monitor-buttonled_{version}_{arch}.deb
 
 
 ## Starting/Stopping the monitor
-To start *Button-LED monitor* from the same system where Thermod is
-running simply execute
+After having edited the config file `monitor-buttonled.conf` you can
+start *Button-LED monitor* simply executing
 
 ```bash
 thermod-monitor-buttonled
 ```
 
-If Thermod is running on a *different* system, the option `--host` can be set
-to the hostname of that system.
-
-The PIN on Raspberry Pi for each color of RGB LED and for the Button can be
-changed using command line parameters: `--red`, `--green`, `--blue`
-and `--button`. The default values are:
-
- - *red* 17
- - *green* 27
- - *blue* 22
- - *button* 5
-
-To have the full list of available options run `thermod-monitor-buttonled`
-with `--help` option.
+To have the full list of available options run the monitor with `--help` option.
 
 ### Systemd
 If *systemd* is in use, copy the file `thermod-monitor-buttonled.service`
-to folder `/lib/systemd/system`, change it to meet your requirements
-then execute
+to `/lib/systemd/system` or to `/usr/local/lib/systemd/system`, change it
+to your needs then execute the following commands to automatically start
+the monitor at system startup.
 
 ```bash
 systemctl daemon-reload
 systemctl enable thermod-monitor-buttonled.service
 ```
 
-to automatically start the monitor at system startup.
+
+## LED flickering issue
+If you use a *very* low value for brightness (like 0.2-0.3) and your LED
+suffers from flickering, probably the PWM of your board is controlled via software.
+
+To avoid the flickering you can try to use [pigpio](http://abyz.me.uk/rpi/pigpio/)
+as backend driver for `gpiozero`:
+
+ 1. make sure to have the `pigpiod` daemon running on the system
+
+ 2. install the `pigpio` package in the same virtualenv of `thermod-monitor-buttonled`
+
+       ```bash
+       pip install pigpio
+       ```
+
+ 3. start *Button-LED monitor* with the environment variable `GPIOZERO_PIN_FACTORY`
+    set to `pigpio`:
+
+       ```bash
+       GPIOZERO_PIN_FACTORY=pigpio thermod-monitor-buttonled
+       ```
+
+    or, if you are using *systemd*, you can add to `thermod-monitor-buttonled.service`
+
+       ```
+       Environment=GPIOZERO_PIN_FACTORY=pigpio
+       ```
+
+For more information on `pigpio` daemon and backend driver see its [web page](http://abyz.me.uk/rpi/pigpio/)
+and `gpiozero` [documentation](https://gpiozero.readthedocs.io/en/stable/remote_gpio.html#environment-variables).
+

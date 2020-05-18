@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from setuptools import setup
 
+__updated__ = '2020-05-11'
+
 def get_version():
     main_ns = {}
     version_str = None
@@ -35,17 +37,27 @@ def get_version():
     exec(version_str, main_ns)
     return main_ns['__version__']
 
+def get_readme():
+    with open('README.md', 'r') as readme:
+        txt = readme.read()
+    return txt
+
 setup(name='thermod-monitor-buttonled',
       version=get_version(),
-      description='Thermod ButtonLED monitor',
-      long_description='Thermod monitor for Raspberry Pi with one button and one RGB LED',
+      description='Thermod monitor for Raspberry Pi with one Button and one RGB LED',
       author='Simone Rossetto',
       author_email='simros85@gmail.com',
+      long_description=get_readme(),
+      long_description_content_type='text/markdown',
       url='https://github.com/droscy/thermod-monitor-buttonled',
       license = 'GPL-3.0+',
+      classifiers=['Programming Language :: Python :: 3',
+                   'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+                   'Environment :: Console'],
       scripts=['thermod-monitor-buttonled'],
-      install_requires=['thermod >= 1.0.0',
-                        'requests >= 2.4.3',
-                        'gpiozero >= 1.3.0'])
+      python_requires='>=3.5',
+      install_requires=['thermod >=1.0.0, <2.0.0',
+                        'requests >=2.4.3',
+                        'gpiozero >=1.3.0'])
 
 # vim: fileencoding=utf-8 tabstop=4 shiftwidth=4 expandtab

@@ -42,14 +42,14 @@ from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 from operator import mul
 
-__version__ = '1.1.0.dev2'
+__version__ = '1.2.0b1'
 __date__ = '2017-05-12'
-__updated__ = '2020-05-09'
+__updated__ = '2020-05-11'
 
 __monitor_name__ = 'buttonled'
 
 # TODO find a way to stop an ongoing GET request when a SIGTERM is received
-# TODO remove deprecated arguments in version 2.0
+# TODO remove deprecated command line arguments in version 2.0
 
 # setting up logging system
 logger = LogStyleAdapter(logging.getLogger('{}.{}'.format(LOGGER_BASE_NAME, __monitor_name__)))
@@ -73,16 +73,16 @@ PIN_BUTTON = 5
 
 # default LED colors
 LED_COLOR_BLACK = (0, 0, 0)
-LED_COLOR_RED = (0.8, 0, 0)
+LED_COLOR_RED = (1, 0, 0)
 LED_COLOR_YELLOW = (1, 1, 0)
-LED_COLOR_GREEN = (0, 0.3, 0)
+LED_COLOR_GREEN = (0, 1, 0)
 LED_COLOR_BLUE = (0, 0, 1)
 LED_COLOR_CYAN = (0, 0.7, 1)
 LED_COLOR_MAGENTA = (0.3, 0, 1)
 
 # default values for brightness
 DEFAULT_BRIGHTNESS = 1.0
-NIGHT_BRIGHTNESS = 0.3
+NIGHT_BRIGHTNESS = 0.5
 NIGHT_START_TIME = '21:00'
 NIGHT_END_TIME = '07:00'
 
@@ -209,7 +209,7 @@ class ButtonLedMonitor(object):
             color = self.color(status.status)
             
             with self._lock:
-                logger.debug('updating LED colour')
+                logger.debug('updating LED color')
                 
                 # If a change isn't happening (thus the lock is not acquired)
                 # we update the led, otherwise we skip this step.
@@ -312,7 +312,7 @@ signal.signal(signal.SIGTERM, shutdown)
 
 
 # parse input arguments
-parser = argparse.ArgumentParser(description='Thermod Button+LED Monitor')
+parser = argparse.ArgumentParser(description='Thermod Button-LED Monitor')
 parser.add_argument('-c', '--config', action='store', default=None, help='path to configuration file')
 parser.add_argument('-r', '--red', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for red led')
 parser.add_argument('-g', '--green', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for green led')
@@ -466,7 +466,7 @@ with ButtonLedMonitor(red,
                       night_start_time,
                       night_end_time) as monitor:
     try:
-        logger.info('Thermod Button+LED monitor v{} started', __version__)
+        logger.info('Thermod Button-LED monitor v{} started', __version__)
         
         try:
             logger.debug('start first connection to Thermod')
