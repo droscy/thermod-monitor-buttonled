@@ -7,8 +7,8 @@ used to change the status in a sequential way: from any status to
 `tmin`, from `tmin` to `antifreeze`, and so on.
 
 ## License
-Thermod Button-LED monitor v1.2.0-beta1 \
-Copyright (C) 2018 Simone Rossetto <simros85@gmail.com> \
+Thermod Button-LED monitor v1.2.0 \
+Copyright (C) 2018-2020 Simone Rossetto <simros85@gmail.com> \
 GNU General Public License v3
 
     This program is free software: you can redistribute it and/or modify
@@ -50,9 +50,10 @@ the system, then the basic steps are:
 
  3. install [thermod](https://github.com/droscy/thermod) package in that virtualenv (see its readme on how to install)
 
- 4. using the same virtualenv, install *Button-LED monitor* with
+ 4. using the same virtualenv, install dependecies and *Button-LED monitor* with
 
        ```bash
+       pip install -r requirements.txt
        python3 setup.py install
        ```
 
@@ -67,6 +68,9 @@ the system, then the basic steps are:
     and adjust it to your needs.
 
 ### Building and installing on Debian-based system
+**Note:** this method only works till version 1.1.0 and with Debian
+stretch because Python 3.5 has been remove from Debian buster onward.
+
 A Debian package can be build using
 [git-buildpackage](https://honk.sigxcpu.org/piki/projects/git-buildpackage/).
 

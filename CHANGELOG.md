@@ -1,6 +1,6 @@
 # Button+Led monitor for Thermod - Changelog
 
-## 1.2.0 (under development)
+## 1.2.0
 
   * Move command line settings to config file
   * Add new settings:

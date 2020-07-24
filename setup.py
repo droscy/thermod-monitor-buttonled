@@ -2,7 +2,7 @@
 """Setup script for Thermod ButtonLED monitor.
 
 @author:     Simone Rossetto
-@copyright:  2018 Simone Rossetto
+@copyright:  2018-2020 Simone Rossetto
 @license:    GNU General Public License v3
 @contact:    simros85@gmail.com
 
@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from setuptools import setup
 
-__updated__ = '2020-05-11'
+__updated__ = '2020-06-06'
 
 def get_version():
     main_ns = {}

@@ -4,7 +4,7 @@
 Thermod monitor for Raspberry Pi with one button and one RGB LED.
 
 @author:     Simone Rossetto
-@copyright:  2018 Simone Rossetto
+@copyright:  2018-2020 Simone Rossetto
 @license:    GNU General Public License v3
 @contact:    simros85@gmail.com
 
@@ -32,7 +32,6 @@ import logging
 import configparser
 
 from thermod import ThermodStatus
-#from thermod.config import MAIN_CONFIG_FILES as THERMOD_CONFIG_FILES
 from thermod.common import LogStyleAdapter, LOGGER_BASE_NAME, LOGGER_FMT_MSG, \
     LOGGER_FMT_TIME, LOGGER_FMT_STYLE, LOGGER_FMT_MSG_SYSLOG, \
     LOGGER_FMT_DATETIME, SOCKET_DEFAULT_HOST, SOCKET_DEFAULT_PORT, \
@@ -42,9 +41,9 @@ from threading import Timer, Lock
 from logging.handlers import SysLogHandler
 from operator import mul
 
-__version__ = '1.2.0b1'
+__version__ = '1.2.0'
 __date__ = '2017-05-12'
-__updated__ = '2020-05-11'
+__updated__ = '2020-07-24'
 
 __monitor_name__ = 'buttonled'
 
@@ -63,7 +62,6 @@ MAIN_CONFIG_FILES = [os.path.join('/etc/thermod', MAIN_CONFIG_FILENAME),
                      os.path.join('/usr/local/etc/thermod', MAIN_CONFIG_FILENAME),
                      os.path.join(os.path.expanduser('~/.config/thermod'), MAIN_CONFIG_FILENAME),
                      MAIN_CONFIG_DEFAULT_FILE]
-#MAIN_CONFIG_FILES.extend(THERMOD_CONFIG_FILES)
 
 # default pins
 PIN_RED = 17
@@ -313,7 +311,7 @@ signal.signal(signal.SIGTERM, shutdown)
 
 # parse input arguments
 parser = argparse.ArgumentParser(description='Thermod Button-LED Monitor')
-parser.add_argument('-c', '--config', action='store', default=None, help='path to configuration file')
+parser.add_argument('-C', '--config', action='store', default=None, help='path to configuration file')
 parser.add_argument('-r', '--red', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for red led')
 parser.add_argument('-g', '--green', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for green led')
 parser.add_argument('-b', '--blue', action='store', type=int, default=None, metavar='PIN', help='(deprecated, use config file) pin number for blue led')
@@ -409,7 +407,7 @@ try:
         except:
             logger.warning('cannot create config file, continue with default settings')
    
-    # pins (TODO remove deprecated args.* for pins)
+    # pins (TODO remove deprecated args.* check)
     red = args.red if args.red else cfg.getint('monitor/buttonled', 'red', fallback=PIN_RED)
     green = args.green if args.green else cfg.getint('monitor/buttonled', 'green', fallback=PIN_GREEN)
     blue = args.blue if args.blue else cfg.getint('monitor/buttonled', 'blue', fallback=PIN_BLUE)
@@ -426,7 +424,7 @@ try:
               'yellow': [float(c) for c in cfg.get('monitor/buttonled/colors', 'yellow', fallback=','.join([str(c) for c in LED_COLOR_YELLOW])).split(',')]}
     
     # connection settings (searched even in main thermod settings)
-    # TODO remove deprecated args.*
+    # TODO remove deprecated args.* check
     host = args.host if args.host else cfg.get('monitor/buttonled', 'host', fallback=cfg.get('socket', 'host', fallback=SOCKET_DEFAULT_HOST))
     port = args.port if args.port else cfg.getint('monitor/buttonled', 'port', fallback=cfg.get('socket', 'port', fallback=SOCKET_DEFAULT_PORT))
     
